@@ -1,0 +1,19 @@
+{
+  "name": "carttech",
+  "version": "1.0.0",
+  "description": "Projeto MVP Hackthon",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/diegoddrosa/carttech.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/diegoddrosa/carttech/issues"
+  },
+  "homepage": "https://github.com/diegoddrosa/carttech#readme"
+}
