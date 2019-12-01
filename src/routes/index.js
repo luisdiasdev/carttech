@@ -1,58 +1,61 @@
 const express = require("express");
 const multer = require("multer");
-const imagickal = require("imagickal");
-const router = express.Router();
-const tesseract = require("node-tesseract-ocr");
+const Matricula = require("../models/matricula");
+const { fork } = require("child_process");
 
-const configTesseract = {
-  lang: "por",
-  oem: 1,
-  psm: 12
-};
-const actionsImageMagic = {
-  quality: 100,
-  density: 350,
-  depth: 8,
-  strip: true,
-  background: "white",
-  alpha: "off"
-};
+const router = express.Router();
 
 const upload = multer({ dest: "uploads/" });
 
-function isMimePdf(mime) {
-  return mime === "application/pdf";
+function isMimePdfOrImage(mime) {
+  return ["application/pdf", "image/png", "image/jpeg", "image/jpg"].includes(
+    mime
+  );
 }
 
-function getTiffFileName(fileName) {
-  return `${fileName}.tiff`;
+async function criarMatricula(file) {
+  const matricula = new Matricula({
+    filePath: file.path,
+    mimeType: file.mimetype
+  });
+  await matricula.save();
+  console.log(`Nova matrícula: ${matricula.filePath} - ${matricula.mimeType}`);
+  return matricula;
 }
 
-function convertPdfToTiff(fileName) {
-  return imagickal
-    .transform(fileName, getTiffFileName(fileName), actionsImageMagic)
-    .then(() => console.log("done"))
-    .catch(err => console.log("errrrr: ", err));
-}
+router.post("/upload/matricula", upload.single("file"), async (req, res) => {
+  const matricula = await criarMatricula(req.file);
 
-function regonizeTextFromTiff(fileName) {
-  return tesseract
-    .recognize(getTiffFileName(fileName), configTesseract)
-    .catch(error => console.log("erro tesseract", error.message));
-}
-
-router.post("/upload/matricula", upload.single("file"), (req, res) => {
-  console.log(req.file);
-  if (isMimePdf(req.file.mimetype)) {
-    console.log("isPdf");
-    convertPdfToTiff(req.file.path).then(() =>
-      regonizeTextFromTiff(req.file.path)
-    );
+  if (isMimePdfOrImage(req.file.mimetype)) {
+    const process = fork("src/routes/process.js");
+    process.send({
+      fileName: req.file.path,
+      matricula,
+      mimeType: req.file.mimetype
+    });
+    process.on("message", async ({ id, atos, cpfs, ruas }) => {
+      console.log(id, cpfs);
+      await Matricula.findOneAndUpdate({ _id: id }, { cpfs, atos, ruas });
+    });
   }
 
   res.json({
-    message: "Upload success"
+    message: "Upload success",
+    id: matricula._id,
+    filePath: matricula.filePath
   });
+});
+
+router.get("/matricula", async (req, res) => {
+  const { busca } = req.params;
+  const result = await Matricula.find({
+    $or: [
+      { cpfs: new RegExp("^" + busca + "$", "i") },
+      { atos: new RegExp("^" + busca + "$", "i") },
+      { ruas: new RegExp("^" + busca + "$", "i") }
+    ]
+  });
+  return res.json(result);
 });
 
 module.exports = router;

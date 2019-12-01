@@ -1,12 +1,18 @@
 const express = require("express");
 const logger = require("morgan");
 const bodyParser = require("body-parser");
-
+const errorHandler = require("errorhandler");
 const indexRouter = require("./routes/index");
+const { connectDb } = require("./config/db");
+
+connectDb()
+  .then(() => console.log("Conectado ao MongoDB"))
+  .catch(error => console.log("Falha ao conectar no MongoDB: ", error));
 
 const app = express();
 
 app.use(logger("dev"));
+app.use(errorHandler());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
