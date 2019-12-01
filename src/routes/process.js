@@ -1,6 +1,4 @@
 const tesseract = require("node-tesseract-ocr");
-const fs = require("fs");
-const Matricula = require("../models/matricula");
 const { execute } = require("./commandHelper");
 
 const imageMagickOptions =
@@ -25,6 +23,8 @@ const regexesAtos = {
 const regexesRuas = {
   1: /(RUA|Rua)[\w\s\ºÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑáàâãéèêíïóôõöúçñ-]{0,}[\.\,\;\n]+/gi
 };
+
+const regexMatricula = /^\=\d+\=$/g;
 
 function concatArray(prev, current) {
   return [...prev, ...current];
@@ -64,14 +64,28 @@ function getAtosFromText(text) {
     .reduce(concatArray, []);
 }
 
+function getMatriculaFromAtos(atos) {
+  return atos
+    .map(a => {
+      const match = regexMatricula.exec(a);
+      if (match) {
+        return match[0].replace(new RegExp("=", "g"), "");
+      }
+      return null;
+    })
+    .filter(m => !!m)[0];
+}
+
 async function regonizeTextFromTiff(fileName) {
   try {
     const text = await tesseract.recognize(fileName, configTesseract);
     const textAdjusted = text.toString("utf-8");
+    const atos = getAtosFromText(textAdjusted);
     return {
+      atos,
       cpfs: getCpfsFromText(textAdjusted),
       ruas: getRuasFromText(textAdjusted),
-      atos: getAtosFromText(textAdjusted)
+      matricula: getMatriculaFromAtos(atos)
     };
   } catch (error) {
     console.log("Erro ao processar arquivo pelo tesseract", error.message);
@@ -113,14 +127,21 @@ process.on("message", async message => {
       ? getTiffFileName(fileName)
       : fileName;
 
-    const { atos, cpfs, ruas } = await regonizeTextFromTiff(imageFileName);
+    const { atos, cpfs, ruas, matricula } = await regonizeTextFromTiff(
+      imageFileName
+    );
     process.send({
       id,
       atos,
       cpfs,
-      ruas
+      ruas,
+      matricula
     });
-    console.log("Terminado processamento de texto para matricula: ", cpfs);
+    console.log(
+      "Terminado processamento de texto para matricula: ",
+      cpfs,
+      matricula
+    );
   } catch (error) {
     console.log("Erro ao processar arquivo: ", error);
     process.exit(1);

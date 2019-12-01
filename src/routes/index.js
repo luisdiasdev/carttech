@@ -33,9 +33,9 @@ router.post("/upload/matricula", upload.single("file"), async (req, res) => {
       matricula,
       mimeType: req.file.mimetype
     });
-    process.on("message", async ({ id, atos, cpfs, ruas }) => {
-      console.log(id, cpfs);
-      await Matricula.findOneAndUpdate({ _id: id }, { cpfs, atos, ruas });
+    process.on("message", async ({ id, atos, cpfs, ruas, matricula }) => {
+      console.log(id, cpfs, matricula);
+      await Matricula.findOneAndUpdate({ _id: id }, { cpfs, atos, ruas, matricula });
     });
   }
 
@@ -47,15 +47,17 @@ router.post("/upload/matricula", upload.single("file"), async (req, res) => {
 });
 
 router.get("/matricula", async (req, res) => {
-  const { busca } = req.params;
-  const result = await Matricula.find({
-    $or: [
-      { cpfs: new RegExp("^" + busca + "$", "i") },
-      { atos: new RegExp("^" + busca + "$", "i") },
-      { ruas: new RegExp("^" + busca + "$", "i") }
-    ]
-  });
-  return res.json(result);
+  const { busca } = req.query;
+  console.log(busca);
+  if (busca) {
+    const result = await Matricula.find().or([
+      { cpfs: { '$regex': busca, '$options': 'i' } },
+      { atos: { '$regex': busca, '$options': 'i' } },
+      { ruas: { '$regex': busca, '$options': 'i' } }
+    ]);
+    return res.json(result);
+  }
+  return res.json(await Matricula.find({}));
 });
 
 module.exports = router;

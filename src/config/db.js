@@ -6,5 +6,5 @@ mongoose.set("useCreateIndex", true);
 mongoose.set("useUnifiedTopology", true);
 
 module.exports = {
-  connectDb: () => mongoose.connect("mongodb://172.17.0.4:27017/carttech")
+  connectDb: () => mongoose.connect("mongodb://172.17.0.3:27017/carttech")
 };
